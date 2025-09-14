@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Starting deployment with DigitalOcean Container Registry..."
+echo "🚀 Starting SAFE deployment with DigitalOcean Container Registry..."
+echo "🛡️  This deployment preserves all existing databases and media files"
 
 # Ensure we're logged into DOCR
 echo "🔐 Logging into DigitalOcean Container Registry..."
@@ -22,8 +23,26 @@ echo "  VIP: ${VIP_TAG}"
 echo "⬇️ Pulling images from DOCR..."
 docker compose -f docker-compose.yml -f compose.grocery.yml -f compose.vip.yml pull
 
-# Start/update services
-echo "🔄 Starting services..."
+# Verify critical volumes exist before deployment
+echo "🔍 Verifying critical volumes exist..."
+if ! docker volume inspect grocery_order_pgdata >/dev/null 2>&1; then
+    echo "❌ CRITICAL: grocery_order_pgdata volume not found!"
+    echo "   This volume contains 6 weeks of grocery data and MUST exist"
+    exit 1
+fi
+
+if ! docker volume inspect grocery_order_vipsite_pgdata >/dev/null 2>&1; then
+    echo "❌ CRITICAL: grocery_order_vipsite_pgdata volume not found!"
+    echo "   This volume contains recent VIP concierge edits and MUST exist"
+    exit 1
+fi
+
+echo "✅ Critical database volumes verified"
+
+# Start/update services (SAFE - uses external volumes)
+echo "🔄 Starting services with preserved data..."
+echo "   📊 Using existing grocery_order_pgdata (preserves 6 weeks of data)"
+echo "   📊 Using existing grocery_order_vipsite_pgdata (preserves concierge edits)"
 docker compose -f docker-compose.yml -f compose.grocery.yml -f compose.vip.yml up -d
 
 # Wait for services to be healthy

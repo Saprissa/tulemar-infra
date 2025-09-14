@@ -115,3 +115,4 @@ volumes:
     name: grocery_static
   grocery_media:
     name: grocery_media
+    external: true  # Use existing media data

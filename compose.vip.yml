@@ -69,3 +69,4 @@ volumes:
     name: vipsite_static
   vipsite_media:
     name: vipsite_media
+    external: true  # Use existing media data
