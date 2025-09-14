@@ -1,0 +1,51 @@
+services:
+  grocery-web:
+    env_file: ./env/grocery.env
+    ports:
+      - "8000:8000"
+
+  grocery-db:
+    env_file: ./env/grocery.env
+    ports:
+      - "5432:5432"
+    volumes:
+      # Use local volume for testing
+      - grocery_test_pgdata:/var/lib/postgresql/data
+
+  vipsite-web:
+    env_file: ./env/vipsite.env
+    ports:
+      - "8001:8001"
+
+  vipsite-db:
+    env_file: ./env/vipsite.env
+    ports:
+      - "5433:5432"
+    volumes:
+      # Use local volume for testing
+      - vipsite_test_pgdata:/var/lib/postgresql/data
+
+  nginx:
+    ports:
+      - "8080:80"  # Different port for local testing
+
+volumes:
+  # Test volumes (not external)
+  grocery_test_pgdata:
+    name: grocery_test_pgdata
+  vipsite_test_pgdata:
+    name: vipsite_test_pgdata
+  grocery_static:
+    name: grocery_static
+  grocery_media:
+    name: grocery_media
+  vipsite_static:
+    name: vipsite_static
+  vipsite_media:
+    name: vipsite_media
+  nginx_logs:
+    name: nginx_logs
+  redis_grocery_data:
+    name: redis_grocery_data
+  redis_vip_data:
+    name: redis_vip_data

@@ -1,0 +1,15 @@
+# Environment files with secrets
+*.env
+!*.env.sample
+!.env
+
+# Backup files
+*.sql
+*.tar.gz
+*.backup
+
+# Logs
+*.log
+
+# OS files
+.DS_Store

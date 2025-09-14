@@ -1,0 +1,71 @@
+services:
+  vipsite-web:
+    image: ${REGISTRY}/vip-microsite:${VIP_TAG}
+    restart: unless-stopped
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8001 --workers 3 --threads 2 --timeout 30
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+      - REDIS_URL=redis://redis-vip:6380/0
+    env_file: /etc/tulemar/env/vipsite.env
+    volumes:
+      - vipsite_static:/app/staticfiles
+      - vipsite_media:/app/media
+    depends_on:
+      vipsite-db:
+        condition: service_healthy
+      redis-vip:
+        condition: service_healthy
+    networks: [tulemar_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/admin/login/\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  vipsite-db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=vipsite_guide_db
+      - POSTGRES_USER=vipsite_user
+    env_file: /etc/tulemar/env/vipsite.env
+    volumes:
+      # CRITICAL: Must match existing volume name exactly
+      - grocery_order_vipsite_pgdata:/var/lib/postgresql/data
+    networks: [tulemar_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vipsite_user -d vipsite_guide_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  # CRITICAL: Use exact names from current production
+  grocery_order_vipsite_pgdata:
+    name: grocery_order_vipsite_pgdata
+    external: true  # Use existing volume
+  vipsite_static:
+    name: vipsite_static
+  vipsite_media:
+    name: vipsite_media

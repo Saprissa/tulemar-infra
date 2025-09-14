@@ -1,0 +1,117 @@
+services:
+  grocery-web:
+    image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
+    restart: unless-stopped
+    command: gunicorn grocery_order.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 30
+    environment:
+      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
+      - REDIS_URL=redis://redis-grocery:6379/0
+    env_file: /etc/tulemar/env/grocery.env
+    volumes:
+      - grocery_static:/app/staticfiles
+      - grocery_media:/app/media
+    depends_on:
+      grocery-db:
+        condition: service_healthy
+      redis-grocery:
+        condition: service_healthy
+    networks: [tulemar_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/admin/login/\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  grocery-db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=grocery_order_db
+      - POSTGRES_USER=grocery_user
+    env_file: /etc/tulemar/env/grocery.env
+    volumes:
+      # CRITICAL: Must match existing volume name exactly
+      - grocery_order_pgdata:/var/lib/postgresql/data
+    networks: [tulemar_net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grocery_user -d grocery_order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  grocery-celery:
+    image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
+    restart: unless-stopped
+    command: celery -A grocery_order worker --loglevel=info --concurrency=2
+    environment:
+      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
+      - REDIS_URL=redis://redis-grocery:6379/0
+    env_file: /etc/tulemar/env/grocery.env
+    depends_on:
+      - grocery-db
+      - redis-grocery
+    networks: [tulemar_net]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  grocery-celerybeat:
+    image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
+    restart: unless-stopped
+    command: celery -A grocery_order beat --loglevel=info
+    environment:
+      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
+      - REDIS_URL=redis://redis-grocery:6379/0
+    env_file: /etc/tulemar/env/grocery.env
+    depends_on:
+      - grocery-db
+      - redis-grocery
+    networks: [tulemar_net]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # CRITICAL: Use exact names from current production
+  grocery_order_pgdata:
+    name: grocery_order_pgdata
+    external: true  # Use existing volume
+  grocery_static:
+    name: grocery_static
+  grocery_media:
+    name: grocery_media
