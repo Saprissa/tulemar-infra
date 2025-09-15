@@ -1,33 +1,131 @@
 services:
   grocery-web:
-    env_file: ./env/grocery.env
+    build:
+      context: ../grocery_order
+      dockerfile: Dockerfile
+    command: ["gunicorn", "grocery_order.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "30"]
+    env_file: ./env/grocery.local.env
     ports:
       - "8000:8000"
+    networks: [tulemar_net]
+    volumes:
+      - grocery_order_static_volume:/app/staticfiles
+      - grocery_media:/app/media
+    depends_on:
+      - grocery-db
+      - redis-grocery
 
   grocery-db:
-    env_file: ./env/grocery.env
+    image: postgres:17
+    env_file: ./env/grocery.local.env
+    environment:
+      - POSTGRES_DB=grocery_db
+      - POSTGRES_USER=grocery_user
     ports:
       - "5432:5432"
     volumes:
       # Use local volume for testing
       - grocery_test_pgdata:/var/lib/postgresql/data
+    networks: [tulemar_net]
+
+  grocery-celery:
+    build:
+      context: ../grocery_order
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "grocery_order", "worker", "--loglevel=info", "--concurrency=2"]
+    env_file: ./env/grocery.local.env
+    networks: [tulemar_net]
+    depends_on:
+      - grocery-db
+      - redis-grocery
+
+  grocery-celerybeat:
+    build:
+      context: ../grocery_order
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "grocery_order", "beat", "--loglevel=info"]
+    env_file: ./env/grocery.local.env
+    networks: [tulemar_net]
+    depends_on:
+      - grocery-db
+      - redis-grocery
 
   vipsite-web:
-    env_file: ./env/vipsite.env
+    build:
+      context: ../vip-microsite
+      dockerfile: Dockerfile
+    command: ["python", "-m", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "3", "--threads", "2", "--timeout", "30"]
+    env_file: ./env/vipsite.local.env
     ports:
       - "8001:8001"
+    networks: [tulemar_net]
+    volumes:
+      - grocery_order_vipsite_static:/app/staticfiles
+      - vipsite_media:/app/media
 
   vipsite-db:
-    env_file: ./env/vipsite.env
+    image: postgres:17
+    env_file: ./env/vipsite.local.env
+    environment:
+      - POSTGRES_DB=vipsite_guide_db
+      - POSTGRES_USER=vipsite_user
     ports:
       - "5433:5432"
     volumes:
       # Use local volume for testing
       - vipsite_test_pgdata:/var/lib/postgresql/data
+    networks: [tulemar_net]
+
+  redis-grocery:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --dbfilename grocery.rdb
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_grocery_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks: [tulemar_net]
+
+  redis-vip:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --dbfilename vip.rdb --port 6380
+    ports:
+      - "6380:6380"
+    volumes:
+      - redis_vip_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks: [tulemar_net]
 
   nginx:
+    image: nginx:alpine
     ports:
       - "8080:80"  # Different port for local testing
+    environment:
+      # Environment-agnostic configuration
+      - SSL_ENABLED=false
+      - GROCERY_DOMAIN=localhost
+      - VIP_DOMAIN=localhost
+    volumes:
+      # Override SSL volumes for local testing
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites:/etc/nginx/conf.d:ro
+      - nginx_logs:/var/log/nginx
+      - grocery_order_static_volume:/srv/grocery_static:ro
+      - grocery_media:/srv/grocery_media:rw
+      - grocery_order_vipsite_static:/srv/vip_static:ro
+      - vipsite_media:/srv/vip_media:rw
+    networks: [tulemar_net]
+    depends_on:
+      - grocery-web
+      - vipsite-web
 
 volumes:
   # Test volumes (not external)
@@ -35,12 +133,12 @@ volumes:
     name: grocery_test_pgdata
   vipsite_test_pgdata:
     name: vipsite_test_pgdata
-  grocery_static:
-    name: grocery_static
+  grocery_order_static_volume:
+    name: grocery_order_static_volume
   grocery_media:
     name: grocery_media
-  vipsite_static:
-    name: vipsite_static
+  grocery_order_vipsite_static:
+    name: grocery_order_vipsite_static
   vipsite_media:
     name: vipsite_media
   nginx_logs:
@@ -49,3 +147,7 @@ volumes:
     name: redis_grocery_data
   redis_vip_data:
     name: redis_vip_data
+
+networks:
+  tulemar_net:
+    driver: bridge

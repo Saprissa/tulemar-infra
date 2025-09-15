@@ -2,11 +2,10 @@ services:
   vipsite-web:
     image: ${REGISTRY}/vip-microsite:${VIP_TAG}
     restart: unless-stopped
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8001 --workers 3 --threads 2 --timeout 30
+    command: ["python", "-m", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "3", "--threads", "2", "--timeout", "30"]
     environment:
-      - DJANGO_SETTINGS_MODULE=core.settings.production
       - REDIS_URL=redis://redis-vip:6380/0
-    env_file: /etc/tulemar/env/vipsite.env
+    env_file: ${ENV_PATH:-/etc/tulemar/env}/vipsite.prod.env
     volumes:
       - vipsite_static:/app/staticfiles
       - vipsite_media:/app/media
@@ -18,10 +17,10 @@ services:
     networks: [tulemar_net]
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/admin/login/\")'"]
-      interval: 30s
+      interval: 10s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 20s
     deploy:
       resources:
         limits:
@@ -39,7 +38,7 @@ services:
     environment:
       - POSTGRES_DB=vipsite_guide_db
       - POSTGRES_USER=vipsite_user
-    env_file: /etc/tulemar/env/vipsite.env
+    env_file: ${ENV_PATH:-/etc/tulemar/env}/vipsite.prod.env
     volumes:
       # CRITICAL: Must match existing volume name exactly
       - grocery_order_vipsite_pgdata:/var/lib/postgresql/data
@@ -59,6 +58,12 @@ services:
       options:
         max-size: "50m"
         max-file: "3"
+
+  # Override nginx to add VIP dependencies
+  nginx:
+    depends_on:
+      vipsite-web:
+        condition: service_healthy
 
 volumes:
   # CRITICAL: Use exact names from current production

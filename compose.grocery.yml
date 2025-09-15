@@ -2,11 +2,10 @@ services:
   grocery-web:
     image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
     restart: unless-stopped
-    command: gunicorn grocery_order.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 30
+    command: ["python", "-m", "gunicorn", "grocery_order.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "30"]
     environment:
-      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
       - REDIS_URL=redis://redis-grocery:6379/0
-    env_file: /etc/tulemar/env/grocery.env
+    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
     volumes:
       - grocery_static:/app/staticfiles
       - grocery_media:/app/media
@@ -39,7 +38,7 @@ services:
     environment:
       - POSTGRES_DB=grocery_order_db
       - POSTGRES_USER=grocery_user
-    env_file: /etc/tulemar/env/grocery.env
+    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
     volumes:
       # CRITICAL: Must match existing volume name exactly
       - grocery_order_pgdata:/var/lib/postgresql/data
@@ -63,11 +62,10 @@ services:
   grocery-celery:
     image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
     restart: unless-stopped
-    command: celery -A grocery_order worker --loglevel=info --concurrency=2
+    command: ["python", "-m", "celery", "-A", "grocery_order", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
-      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
       - REDIS_URL=redis://redis-grocery:6379/0
-    env_file: /etc/tulemar/env/grocery.env
+    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
     depends_on:
       - grocery-db
       - redis-grocery
@@ -86,11 +84,10 @@ services:
   grocery-celerybeat:
     image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
     restart: unless-stopped
-    command: celery -A grocery_order beat --loglevel=info
+    command: ["python", "-m", "celery", "-A", "grocery_order", "beat", "--loglevel=info"]
     environment:
-      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
       - REDIS_URL=redis://redis-grocery:6379/0
-    env_file: /etc/tulemar/env/grocery.env
+    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
     depends_on:
       - grocery-db
       - redis-grocery
@@ -105,6 +102,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Override nginx to add grocery dependencies
+  nginx:
+    depends_on:
+      grocery-web:
+        condition: service_healthy
 
 volumes:
   # CRITICAL: Use exact names from current production

@@ -1,0 +1,114 @@
+name: tulemar_test
+
+services:
+  grocery-web:
+    image: ${REGISTRY}/grocery_order:${GROCERY_TAG}
+    command: gunicorn grocery_order.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 1 --timeout 30
+    environment:
+      - DJANGO_SETTINGS_MODULE=grocery_order.settings.production
+      - REDIS_URL=redis://redis-grocery:6379/0
+    env_file: ./env/grocery.env
+    volumes:
+      - grocery_test_static:/app/staticfiles
+      - grocery_test_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-grocery:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/admin/login/\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    image: postgres:17
+    environment:
+      - POSTGRES_DB=grocery_order_db
+      - POSTGRES_USER=grocery_user
+    env_file: ./env/grocery.env
+    volumes:
+      - grocery_test_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grocery_user -d grocery_order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-grocery:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --dbfilename grocery.rdb
+    volumes:
+      - redis_grocery_test:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vipsite-web:
+    image: ${REGISTRY}/vip-microsite:${VIP_TAG}
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8001 --workers 1 --threads 1 --timeout 30
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.production
+      - REDIS_URL=redis://redis-vip:6380/0
+    env_file: ./env/vipsite.env
+    volumes:
+      - vipsite_test_static:/app/staticfiles
+      - vipsite_test_media:/app/media
+    depends_on:
+      vipsite-db:
+        condition: service_healthy
+      redis-vip:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/admin/login/\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  vipsite-db:
+    image: postgres:17
+    environment:
+      - POSTGRES_DB=vipsite_guide_db
+      - POSTGRES_USER=vipsite_user
+    env_file: ./env/vipsite.env
+    volumes:
+      - vipsite_test_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vipsite_user -d vipsite_guide_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-vip:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --dbfilename vip.rdb --port 6380
+    volumes:
+      - redis_vip_test:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  grocery_test_pgdata:
+  vipsite_test_pgdata:
+  grocery_test_static:
+  grocery_test_media:
+  vipsite_test_static:
+  vipsite_test_media:
+  redis_grocery_test:
+  redis_vip_test:

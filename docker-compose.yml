@@ -22,11 +22,7 @@ services:
       - vipsite_static:/srv/vip_static:ro
       - vipsite_media:/srv/vip_media:ro
     networks: [tulemar_net]
-    depends_on:
-      grocery-web:
-        condition: service_healthy
-      vipsite-web:
-        condition: service_healthy
+    # depends_on moved to app-specific compose files
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
@@ -103,3 +99,11 @@ volumes:
     name: redis_grocery_data
   redis_vip_data:
     name: redis_vip_data
+  grocery_static:
+    name: grocery_static
+  grocery_media:
+    name: grocery_media
+  vipsite_static:
+    name: vipsite_static
+  vipsite_media:
+    name: vipsite_media
