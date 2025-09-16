@@ -17,10 +17,10 @@ services:
       # Logs
       - nginx_logs:/var/log/nginx
       # Static and media files for direct serving
-      - grocery_static:/srv/grocery_static:ro
-      - grocery_media:/srv/grocery_media:ro
-      - vipsite_static:/srv/vip_static:ro
-      - vipsite_media:/srv/vip_media:ro
+      - grocery_order_static_volume:/srv/grocery_static:ro
+      - /home/davidralston/grocery_order/media:/srv/grocery_media:ro
+      - grocery_order_vipsite_static:/srv/vip_static:ro
+      - /home/davidralston/grocery_order/vip-microsite/media:/srv/vip_media:ro
     networks: [tulemar_net]
     # depends_on moved to app-specific compose files
     healthcheck:
@@ -88,22 +88,21 @@ networks:
 volumes:
   # CRITICAL: These volume names MUST match existing production volumes
   certbot_certs:
-    name: certbot_certs
+    name: grocery_order_certbot_certs
     external: true  # Use existing volume
   certbot_webroot:
-    name: certbot_webroot
+    name: grocery_order_certbot_webroot
     external: true  # Use existing volume
   nginx_logs:
     name: nginx_logs
   redis_grocery_data:
-    name: redis_grocery_data
+    name: grocery_order_redis_data
+    external: true  # Use existing redis data
   redis_vip_data:
     name: redis_vip_data
-  grocery_static:
-    name: grocery_static
-  grocery_media:
-    name: grocery_media
-  vipsite_static:
-    name: vipsite_static
-  vipsite_media:
-    name: vipsite_media
+  grocery_order_static_volume:
+    name: grocery_order_static_volume
+    external: true  # Use existing static files
+  grocery_order_vipsite_static:
+    name: grocery_order_vipsite_static
+    external: true  # Use existing VIP static files

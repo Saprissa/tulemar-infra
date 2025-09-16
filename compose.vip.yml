@@ -7,8 +7,8 @@ services:
       - REDIS_URL=redis://redis-vip:6380/0
     env_file: ${ENV_PATH:-/etc/tulemar/env}/vipsite.prod.env
     volumes:
-      - vipsite_static:/app/staticfiles
-      - vipsite_media:/app/media
+      - grocery_order_vipsite_static:/app/staticfiles
+      - /home/davidralston/grocery_order/vip-microsite/media:/app/media
     depends_on:
       vipsite-db:
         condition: service_healthy
@@ -70,8 +70,6 @@ volumes:
   grocery_order_vipsite_pgdata:
     name: grocery_order_vipsite_pgdata
     external: true  # Use existing volume
-  vipsite_static:
-    name: vipsite_static
-  vipsite_media:
-    name: vipsite_media
-    external: true  # Use existing media data
+  grocery_order_vipsite_static:
+    name: grocery_order_vipsite_static
+    external: true  # Use existing static files

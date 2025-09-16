@@ -7,8 +7,8 @@ services:
       - REDIS_URL=redis://redis-grocery:6379/0
     env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
     volumes:
-      - grocery_static:/app/staticfiles
-      - grocery_media:/app/media
+      - grocery_order_static_volume:/app/staticfiles
+      - /home/davidralston/grocery_order/media:/app/media
     depends_on:
       grocery-db:
         condition: service_healthy
@@ -114,8 +114,6 @@ volumes:
   grocery_order_pgdata:
     name: grocery_order_pgdata
     external: true  # Use existing volume
-  grocery_static:
-    name: grocery_static
-  grocery_media:
-    name: grocery_media
-    external: true  # Use existing media data
+  grocery_order_static_volume:
+    name: grocery_order_static_volume
+    external: true  # Use existing static files

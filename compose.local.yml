@@ -1,3 +1,5 @@
+name: tulemar_stack
+
 services:
   grocery-web:
     build:
@@ -128,24 +130,33 @@ services:
       - vipsite-web
 
 volumes:
-  # Test volumes (not external)
+  # External volumes (shared across project names)
   grocery_test_pgdata:
+    external: true
     name: grocery_test_pgdata
   vipsite_test_pgdata:
+    external: true
     name: vipsite_test_pgdata
   grocery_order_static_volume:
+    external: true
     name: grocery_order_static_volume
   grocery_media:
+    external: true
     name: grocery_media
   grocery_order_vipsite_static:
+    external: true
     name: grocery_order_vipsite_static
   vipsite_media:
+    external: true
     name: vipsite_media
   nginx_logs:
+    external: true
     name: nginx_logs
   redis_grocery_data:
+    external: true
     name: redis_grocery_data
   redis_vip_data:
+    external: true
     name: redis_vip_data
 
 networks:
