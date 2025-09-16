@@ -15,6 +15,8 @@ services:
       redis-grocery:
         condition: service_healthy
     networks: [tulemar_net]
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/admin/login/\")'"]
       interval: 30s
