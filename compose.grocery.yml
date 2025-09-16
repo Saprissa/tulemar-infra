@@ -5,7 +5,7 @@ services:
     command: ["python", "-m", "gunicorn", "grocery_order.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "30"]
     environment:
       - REDIS_URL=redis://redis-grocery:6379/0
-    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
+    env_file: ./env/grocery.prod.env
     volumes:
       - grocery_order_static_volume:/app/staticfiles
       - /home/davidralston/grocery_order/media:/app/media
@@ -40,7 +40,7 @@ services:
     environment:
       - POSTGRES_DB=grocery_order_db
       - POSTGRES_USER=grocery_user
-    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
+    env_file: ./env/grocery.prod.env
     volumes:
       # CRITICAL: Must match existing volume name exactly
       - grocery_order_pgdata:/var/lib/postgresql/data
@@ -67,7 +67,7 @@ services:
     command: ["python", "-m", "celery", "-A", "grocery_order", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
       - REDIS_URL=redis://redis-grocery:6379/0
-    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
+    env_file: ./env/grocery.prod.env
     depends_on:
       - grocery-db
       - redis-grocery
@@ -89,7 +89,7 @@ services:
     command: ["python", "-m", "celery", "-A", "grocery_order", "beat", "--loglevel=info"]
     environment:
       - REDIS_URL=redis://redis-grocery:6379/0
-    env_file: ${ENV_PATH:-/etc/tulemar/env}/grocery.prod.env
+    env_file: ./env/grocery.prod.env
     depends_on:
       - grocery-db
       - redis-grocery

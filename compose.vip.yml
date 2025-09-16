@@ -5,7 +5,7 @@ services:
     command: ["python", "-m", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "3", "--threads", "2", "--timeout", "30"]
     environment:
       - REDIS_URL=redis://redis-vip:6380/0
-    env_file: ${ENV_PATH:-/etc/tulemar/env}/vipsite.prod.env
+    env_file: ./env/vipsite.prod.env
     volumes:
       - grocery_order_vipsite_static:/app/staticfiles
       - /home/davidralston/grocery_order/vip-microsite/media:/app/media
@@ -38,7 +38,7 @@ services:
     environment:
       - POSTGRES_DB=vipsite_guide_db
       - POSTGRES_USER=vipsite_user
-    env_file: ${ENV_PATH:-/etc/tulemar/env}/vipsite.prod.env
+    env_file: ./env/vipsite.prod.env
     volumes:
       # CRITICAL: Must match existing volume name exactly
       - grocery_order_vipsite_pgdata:/var/lib/postgresql/data
