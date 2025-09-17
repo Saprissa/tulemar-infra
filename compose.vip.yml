@@ -2,7 +2,7 @@ services:
   vipsite-web:
     image: ${REGISTRY}/vip-microsite:${VIP_TAG}
     restart: unless-stopped
-    command: ["python", "-m", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "3", "--threads", "2", "--timeout", "30"]
+    command: ["python", "-m", "gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "2", "--threads", "2", "--timeout", "120", "--max-requests", "200", "--max-requests-jitter", "50"]
     environment:
       - REDIS_URL=redis://redis-vip:6380/0
     env_file: ./env/vipsite.prod.env
@@ -16,16 +16,16 @@ services:
         condition: service_healthy
     networks: [tulemar_net]
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8001/admin/login/\")'"]
-      interval: 10s
-      timeout: 10s
+      test: ["CMD-SHELL", "curl -f -H 'Host: guide.tulemar.vip' http://localhost:8001/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 60s
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: 1G
+          memory: 2G
     logging:
       driver: json-file
       options:
@@ -59,11 +59,7 @@ services:
         max-size: "50m"
         max-file: "3"
 
-  # Override nginx to add VIP dependencies
-  nginx:
-    depends_on:
-      vipsite-web:
-        condition: service_healthy
+  # nginx starts independently - removed dependency on app health
 
 volumes:
   # CRITICAL: Use exact names from current production
